@@ -24,7 +24,7 @@ import java.util.*;
 public class CityWeatherService implements ICityWeatherService {
 
     private final WebClient webClient;
-    private Map<String, CityWeatherDetails> weatherCache;
+    private Map<String, CityWeatherDetails> weatherBackUpData;
     private final CacheManager<CityWeatherDetails> cacheManager;
     private static final Logger logger = LoggerFactory.getLogger(CityWeatherService.class);
 
@@ -45,31 +45,30 @@ public class CityWeatherService implements ICityWeatherService {
 
     public CityWeatherService(WebClient webClient, CacheManager<CityWeatherDetails> cacheManager) {
         this.webClient = webClient;
-        this.weatherCache = new HashMap<>();
+        this.weatherBackUpData = new HashMap<>();
         this.cacheManager = cacheManager;
     }
 
     public Mono<CityWeatherPrediction> getWeatherPrediction(String city) {
-        // Load the weather cache from file
-        weatherCache = cacheManager.loadCacheFromFile(fileName, new TypeReference<>() {});
+        // Load the weather data from file
+        weatherBackUpData = cacheManager.loadCacheFromFile(fileName, new TypeReference<>() {});
 
         // Handle offline mode
         if (!isOnline) {
-            logger.info("Service is in offline mode. Fetching data from cache.");
+            logger.info("Service is in offline mode. Fetching data from back up.");
             return getPredictionFromCache(city)
                     .switchIfEmpty(Mono.just(new CityWeatherPrediction("No data available currently for ".concat(city), new LinkedHashMap<>(), 500)));
         }
 
-        // Online mode: Fetch data from API with fallback to cache
+        // Online mode: Fetch data from API with fallback to back up
         return fetchWeatherFromApi(city)
             .flatMap(cityWeatherDetails -> {
                 // Return the appropriate weather prediction based on the API response
-                if ("200".equals(cityWeatherDetails.getCod())) {
+                if (cityWeatherDetails.getCod().equals("200")) {
                     // Successful API response
                     return Mono.just(generateWeatherAdvice(cityWeatherDetails));
                 } else {
-                    // Other errors: fallback to cache
-                    logger.error("API error ({}). Attempting to fetch data from cache.", cityWeatherDetails.getCod());
+                    // Other errors: fallback to back up
                     return getPredictionFromCache(city)
                             .switchIfEmpty(Mono.just(new CityWeatherPrediction(cityWeatherDetails.getMessage(), new LinkedHashMap<>(), Integer.parseInt(cityWeatherDetails.getCod())
                             )));
@@ -84,7 +83,7 @@ public class CityWeatherService implements ICityWeatherService {
     }
 
     private Mono<CityWeatherPrediction> getPredictionFromCache(String city) {
-        CityWeatherDetails cachedWeather = weatherCache.get(city);
+        CityWeatherDetails cachedWeather = weatherBackUpData.get(city);
         if (cachedWeather != null) {
             return Mono.just(generateWeatherAdvice(cachedWeather));
         }
@@ -183,17 +182,14 @@ public class CityWeatherService implements ICityWeatherService {
                 .queryParam("appid", apiKey)
                 .build())
             .retrieve()
-            .onStatus(HttpStatusCode::is4xxClientError, clientResponse -> {
-                return clientResponse.bodyToMono(CityWeatherDetails.class)
-                    .flatMap(errorDetails -> {
-                        logger.error("Client error: {} - {}", errorDetails.getCod(), errorDetails.getMessage());
-                        // Return a custom error with cod included
-                        return Mono.error(new CityWeatherException(
-                                errorDetails.getCod(),
-                                errorDetails.getMessage()
-                        ));
-                    });
-            })
+            .onStatus(HttpStatusCode::is4xxClientError, clientResponse -> clientResponse.bodyToMono(CityWeatherDetails.class)
+                .flatMap(errorDetails -> {
+                    // Return a custom error with cod included
+                    return Mono.error(new CityWeatherException(
+                            errorDetails.getCod(),
+                            errorDetails.getMessage()
+                    ));
+                }))
             .onStatus(HttpStatusCode::isError, clientResponse -> {
                 logger.error("Unexpected error with status code: {}", clientResponse.statusCode().value());
                 return Mono.error(new RuntimeException("Unexpected error with status code: " + clientResponse.statusCode().value()));
@@ -202,8 +198,8 @@ public class CityWeatherService implements ICityWeatherService {
             .doOnNext(cityWeatherDetails -> {
                 if (cityWeatherDetails != null && "200".equals(cityWeatherDetails.getCod())
                         && cityWeatherDetails.getList() != null && !cityWeatherDetails.getList().isEmpty()) {
-                    weatherCache.put(city, cityWeatherDetails);
-                    cacheManager.saveCacheToFile(fileName, weatherCache);
+                    weatherBackUpData.put(city, cityWeatherDetails);
+                    cacheManager.saveCacheToFile(fileName, weatherBackUpData);
                 }
             })
             .onErrorResume(error -> {
