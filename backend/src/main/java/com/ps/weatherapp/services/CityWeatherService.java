@@ -7,6 +7,7 @@ import com.ps.weatherapp.models.*;
 import com.ps.weatherapp.utilities.CacheManager;
 
 import com.ps.weatherapp.utilities.DateTimeManager;
+import com.ps.weatherapp.utilities.WeatherAdviceManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -18,7 +19,6 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
 import java.util.*;
-import java.util.concurrent.atomic.AtomicReference;
 
 @Service
 public class CityWeatherService implements ICityWeatherService {
@@ -128,16 +128,14 @@ public class CityWeatherService implements ICityWeatherService {
             prediction.setTemperature(tempCelsius);
 
             List<WeatherStatus> statusList = new ArrayList<>();
+            StringBuilder advice = new StringBuilder();
 
-            AtomicReference<Boolean> isRainy = new AtomicReference<>(false);
-            AtomicReference<Boolean> isSnowy = new AtomicReference<>(false);
             weatherDetails.getWeather().forEach(weather -> {
                 WeatherStatus weatherStatus = new WeatherStatus();
                 weatherStatus.setDescription(weather.getDescription());
                 weatherStatus.setStatus(weather.getMain());
                 statusList.add(weatherStatus);
-                isRainy.set(weather.getDescription().contains("rain") || weather.getDescription().contains("drizzle"));
-                isSnowy.set(weather.getDescription().contains("snow"));
+                advice.append(WeatherAdviceManager.getWeatherAdvice(weather));
             });
 
             prediction.setWeather(statusList);
@@ -145,25 +143,15 @@ public class CityWeatherService implements ICityWeatherService {
             Wind wind = weatherDetails.getWind();
             double windSpeed = wind.getSpeed();
 
-            StringBuilder advice = new StringBuilder();
+
             // Advice for high temperature
             if (tempCelsius > 40) {
                 advice.append("Use sunscreen lotion. ");
             }
 
-            // Advice for rain
-            if (isRainy.get()) {
-                advice.append("Carry umbrella.");
-            }
-
             // Advice for high winds
             if (windSpeed > 10) {
                 advice.append("It’s too windy, watch out! ");
-            }
-
-            //Advice for snow
-            if (isSnowy.get()){
-                advice.append("Snow Alert! Get a jacket on!");
             }
 
             prediction.setAdvice(!advice.isEmpty()? advice.toString() : "No advice as of now!!,");
