@@ -95,80 +95,97 @@ public class CityWeatherService implements ICityWeatherService {
      */
     private CityWeatherPrediction generateWeatherAdvice(CityWeatherDetails cityWeatherDetails) {
 
+        // Create an object to store the final weather prediction result for the city
         CityWeatherPrediction cityWeatherPrediction = new CityWeatherPrediction();
 
-        //Map to store weather prediction for each day. Key is the day for which weather prediction is done
+        // Map to store weather predictions for each day. The key is the date, and the value is the list of predictions for that day
         Map<String, List<WeatherPrediction>> map = new LinkedHashMap<>();
 
-        //Array list to store 3hr gap based weather for a given day.
+        // List to store weather predictions for a specific day (in 3-hour intervals)
         List<WeatherPrediction> datedList = new ArrayList<>();
 
-        //Get city timeZone offset
+        // Get the city's time zone offset from the city details
         City cityDetails = cityWeatherDetails.getCity();
         int timeZone = cityDetails.getTimezone();
 
-        //Get date from first weather data
+        // Extract the date from the first weather data entry (assuming the first entry represents the start of the forecast)
         String currentDate = DateTimeManager.extractDateFromUnix(cityWeatherDetails.getList().getFirst().getDt(), timeZone);
 
+        // Iterate through each weather detail entry to generate the forecast
         for (WeatherDetails weatherDetails : cityWeatherDetails.getList()) {
 
-            //instantiate empty whether prediction
+            // Instantiate a new WeatherPrediction object for each weather detail
             WeatherPrediction prediction = new WeatherPrediction();
 
-            //Get city date and time
+            // Get the date and time for this specific weather entry based on the time zone
             String cityDate = DateTimeManager.extractDateFromUnix(weatherDetails.getDt(), timeZone);
             String cityTime = DateTimeManager.extractTimeFromUnix(weatherDetails.getDt(), timeZone);
 
-            //set time of weather prediction
+            // Set the time of this weather prediction
             prediction.setTime(cityTime);
 
-            //set temp in Celsius for weather prediction
+            // Convert the temperature from Kelvin to Celsius and round to the nearest integer
             double tempCelsius = Math.round(weatherDetails.getMain().getTemp() - 273.15);
             prediction.setTemperature(tempCelsius);
 
+            // Create a list to store weather status (e.g., description and main weather type)
             List<WeatherStatus> statusList = new ArrayList<>();
             StringBuilder advice = new StringBuilder();
 
+            // Iterate through the weather conditions and build the advice and status list
             weatherDetails.getWeather().forEach(weather -> {
+                // Create a WeatherStatus object for each condition and add to the status list
                 WeatherStatus weatherStatus = new WeatherStatus();
                 weatherStatus.setDescription(weather.getDescription());
                 weatherStatus.setStatus(weather.getMain());
                 statusList.add(weatherStatus);
+
+                // Append the weather-specific advice to the advice builder
                 advice.append(WeatherAdviceManager.getWeatherAdvice(weather));
             });
 
+            // Set the weather status list to the prediction
             prediction.setWeather(statusList);
 
+            // Get the wind details for this weather entry
             Wind wind = weatherDetails.getWind();
             double windSpeed = wind.getSpeed();
 
-
-            // Advice for high temperature
+            // Advice based on temperature (if above 40°C)
             if (tempCelsius > 40) {
                 advice.append("Use sunscreen lotion. ");
             }
 
-            // Advice for high winds
+            // Advice based on wind speed (if above 10 m/s)
             if (windSpeed > 10) {
                 advice.append("It’s too windy, watch out! ");
             }
 
-            prediction.setAdvice(!advice.isEmpty()? advice.toString() : "No advice as of now!!,");
+            // Set the final advice for this prediction (or a default message if no advice)
+            prediction.setAdvice(!advice.isEmpty() ? advice.toString() : "No advice as of now!!");
 
-            /*check if the has date has changed then the weather prediction should
-                be store in new list representing date for new day */
+            // Check if the date has changed to store weather predictions for a new day
             if (!currentDate.equals(cityDate)) {
-                datedList = new ArrayList<>();
-                currentDate = cityDate;
+                datedList = new ArrayList<>();  // Clear the dated list for the new day
+                currentDate = cityDate; // Update the current date
             }
+
+            // Add the prediction to the list for the current date
             datedList.add(prediction);
+
+            // Store the list of predictions for this date in the map
             map.put(cityDate, datedList);
         }
+
+        // Set the success message, status code, and data in the final city weather prediction object
         cityWeatherPrediction.setMessage("success");
         cityWeatherPrediction.setData(map);
         cityWeatherPrediction.setStatus(200);
+
+        // Return the generated weather advice for the city
         return cityWeatherPrediction;
     }
+
 
     /**
      * Method to fetch weather data from the API.
