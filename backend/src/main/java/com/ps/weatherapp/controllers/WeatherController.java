@@ -5,6 +5,7 @@ import com.ps.weatherapp.services.CityWeatherService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Mono;
@@ -12,6 +13,7 @@ import reactor.core.publisher.Mono;
 import java.util.LinkedHashMap;
 
 @RestController
+@RequestMapping("/api/v1/weather")
 public class WeatherController {
 
     private final CityWeatherService weatherService;
@@ -20,7 +22,7 @@ public class WeatherController {
         this.weatherService = weatherService;
     }
 
-    @GetMapping("/weather")
+    @GetMapping("/advice")
     public Mono<ResponseEntity<CityWeatherPrediction>> getWeatherAdvice(@RequestParam String city) {
         return weatherService.getWeatherPrediction(city)
             .map(cityWeatherPrediction -> {
