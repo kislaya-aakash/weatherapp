@@ -9,8 +9,8 @@ public class CityWeatherAdvice {
     private int status;
     private Map<String, List<WeatherPrediction>> data;
 
-    public CityWeatherAdvice(String errorMessage, Map<String, List<WeatherPrediction>> data, int status) {
-        this.message = errorMessage;
+    public CityWeatherAdvice(String message, Map<String, List<WeatherPrediction>> data, int status) {
+        this.message = message;
         this.data = data;
         this.status = status;
     }

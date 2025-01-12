@@ -43,7 +43,7 @@ public class CityWeatherService implements ICityWeatherService {
 
     public CityWeatherService(WebClient webClient, FileManager<CityWeatherDetails> fileManager) {
         this.webClient = webClient;
-        this.weatherBackUpData = new HashMap<>();
+        this.weatherBackUpData = new LinkedHashMap<>();
         this.fileManager = fileManager;
     }
 
@@ -96,9 +96,6 @@ public class CityWeatherService implements ICityWeatherService {
      * Generate weather advice based on weather conditions
      */
     private CityWeatherAdvice generateWeatherAdvice(CityWeatherDetails cityWeatherDetails) {
-
-        // Create an object to store the final weather prediction result for the city
-        CityWeatherAdvice cityWeatherAdvice = new CityWeatherAdvice();
 
         // Map to store weather predictions for each day. The key is the date, and the value is the list of predictions for that day
         Map<String, List<WeatherPrediction>> map = new LinkedHashMap<>();
@@ -179,15 +176,9 @@ public class CityWeatherService implements ICityWeatherService {
             map.put(cityDate, datedList);
         }
 
-        // Set the success message, status code, and data in the final city weather prediction object
-        cityWeatherAdvice.setMessage("success");
-        cityWeatherAdvice.setData(map);
-        cityWeatherAdvice.setStatus(200);
-
-        // Return the generated weather advice for the city
-        return cityWeatherAdvice;
+        // Create and return the generated weather advice for the city
+        return new CityWeatherAdvice("success", map, 200);
     }
-
 
     /**
      * Method to fetch weather data from the API.

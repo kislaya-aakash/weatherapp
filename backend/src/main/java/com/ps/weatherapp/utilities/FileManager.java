@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 @Component
@@ -67,11 +68,11 @@ public class FileManager<T> {
                 return deserializeData(json, typeReference);
             } else {
                 logger.info("Cache file not found. Creating a new empty cache.");
-                return new HashMap<>();
+                return new LinkedHashMap<>();
             }
         } catch (IOException e) {
             logger.warn("Error loading cache from file: {}", e.getMessage());
-            return new HashMap<>();
+            return new LinkedHashMap<>();
         }
     }
 }
