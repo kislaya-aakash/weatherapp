@@ -1,7 +1,5 @@
 package com.ps.weatherapp.models;
 
-import lombok.*;
-
 import java.util.List;
 
 public class CityWeatherDetails {
