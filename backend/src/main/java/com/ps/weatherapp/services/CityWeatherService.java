@@ -42,8 +42,8 @@ public class CityWeatherService implements ICityWeatherService {
     @Value("${service.cacheFileName}")
     private String fileName;
 
-    public CityWeatherService(WebClient webClient, FileManager<CityWeatherDetails> fileManager) {
-        this.apiManager = new ExternalAPIManager(webClient);
+    public CityWeatherService(WebClient webClient, FileManager<CityWeatherDetails> fileManager, ExternalAPIManager apiManager) {
+        this.apiManager = apiManager;
         this.fileManager = fileManager;
         this.weatherBackUpData = new LinkedHashMap<>();
     }
