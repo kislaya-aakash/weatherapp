@@ -14,16 +14,16 @@ import java.util.HashMap;
 import java.util.Map;
 
 @Component
-public class CacheManager<T> {
+public class FileManager<T> {
     private final ObjectMapper objectMapper;
-    private static final Logger logger = LoggerFactory.getLogger(CacheManager.class);
+    private static final Logger logger = LoggerFactory.getLogger(FileManager.class);
 
-    public CacheManager() {
+    public FileManager() {
         this.objectMapper = new ObjectMapper();
     }
 
     // Serialize the cache to a JSON string
-    public String serializeCache(Map<String, T> cache) {
+    public String serializeData(Map<String, T> cache) {
         try {
             return objectMapper.writeValueAsString(cache);
         } catch (IOException e) {
@@ -33,7 +33,7 @@ public class CacheManager<T> {
     }
 
     // Deserialize JSON string to the cache structure
-    public Map<String, T> deserializeCache(String json, TypeReference<Map<String, T>> typeReference) {
+    public Map<String, T> deserializeData(String json, TypeReference<Map<String, T>> typeReference) {
         try {
             return objectMapper.readValue(json, typeReference);
         } catch (IOException e) {
@@ -43,9 +43,9 @@ public class CacheManager<T> {
     }
 
     // Save the cache to a file
-    public void saveCacheToFile(String fileName, Map<String, T> cache) {
+    public void saveDataToFile(String fileName, Map<String, T> cache) {
         try {
-            String json = serializeCache(cache);
+            String json = serializeData(cache);
             if (json != null) {
                 File file = new File(fileName);
                 if (!file.exists()) {
@@ -59,12 +59,12 @@ public class CacheManager<T> {
     }
 
     // Load the cache from a file
-    public Map<String, T> loadCacheFromFile(String fileName, TypeReference<Map<String, T>> typeReference) {
+    public Map<String, T> loadDataFromFile(String fileName, TypeReference<Map<String, T>> typeReference) {
         try {
             File file = new File(fileName);
             if (file.exists()) {
                 String json = new String(Files.readAllBytes(Paths.get(fileName)));
-                return deserializeCache(json, typeReference);
+                return deserializeData(json, typeReference);
             } else {
                 logger.info("Cache file not found. Creating a new empty cache.");
                 return new HashMap<>();

@@ -23,23 +23,23 @@ public class WeatherController {
     }
 
     @GetMapping("/advice")
-    public Mono<ResponseEntity<CityWeatherPrediction>> getWeatherAdvice(@RequestParam String city) {
-        return weatherService.getWeatherPrediction(city)
-            .map(cityWeatherPrediction -> {
+    public Mono<ResponseEntity<CityWeatherAdvice>> getWeatherAdvice(@RequestParam String city) {
+        return weatherService.getWeatherAdvice(city)
+            .map(cityWeatherAdvice -> {
                 // Customizing the response body and status code
-                if (cityWeatherPrediction.getStatus() == 200) {
+                if (cityWeatherAdvice.getStatus() == 200) {
                     // Successful response
-                    return ResponseEntity.ok(cityWeatherPrediction); // 200 OK
+                    return ResponseEntity.ok(cityWeatherAdvice); // 200 OK
                 } else {
                     // Error response (e.g., city not found or service error)
-                    HttpStatus status = cityWeatherPrediction.getStatus() == 404 ? HttpStatus.NOT_FOUND : HttpStatus.SERVICE_UNAVAILABLE;
+                    HttpStatus status = cityWeatherAdvice.getStatus() == 404 ? HttpStatus.NOT_FOUND : HttpStatus.SERVICE_UNAVAILABLE;
                     return ResponseEntity.status(status) // 404 Not Found
-                            .body(cityWeatherPrediction);
+                            .body(cityWeatherAdvice);
                 }
             })
             .onErrorResume(error -> {
                 // Handle unexpected errors (e.g., network issues)
-                CityWeatherPrediction fallbackPrediction = new CityWeatherPrediction(
+                CityWeatherAdvice fallbackPrediction = new CityWeatherAdvice(
                         "Service temporarily unavailable.", new LinkedHashMap<>(), 503);
                 return Mono.just(ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
                         .body(fallbackPrediction)); // 503 Service Unavailable

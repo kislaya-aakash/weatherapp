@@ -3,19 +3,19 @@ package com.ps.weatherapp.models;
 import java.util.List;
 import java.util.Map;
 
-public class CityWeatherPrediction {
+public class CityWeatherAdvice {
 
     private String message;
     private int status;
     private Map<String, List<WeatherPrediction>> data;
 
-    public CityWeatherPrediction(String errorMessage, Map<String, List<WeatherPrediction>> data, int status) {
+    public CityWeatherAdvice(String errorMessage, Map<String, List<WeatherPrediction>> data, int status) {
         this.message = errorMessage;
         this.data = data;
         this.status = status;
     }
 
-    public CityWeatherPrediction() {
+    public CityWeatherAdvice() {
     }
 
     public String getMessage() {

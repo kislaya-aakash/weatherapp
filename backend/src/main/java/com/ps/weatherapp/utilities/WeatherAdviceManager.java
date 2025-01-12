@@ -32,6 +32,6 @@ public class WeatherAdviceManager {
             return "";
         }
         String main = weatherInfo.getMain().toLowerCase();
-        return weatherAdviceMap.get(main);
+        return weatherAdviceMap.get(main) != null ? weatherAdviceMap.get(main) : "";
     }
 }
