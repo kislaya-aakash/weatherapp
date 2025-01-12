@@ -17,7 +17,11 @@ import org.springframework.web.reactive.function.client.WebClient;
 
 import reactor.core.publisher.Mono;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class CityWeatherService implements ICityWeatherService {
@@ -192,12 +196,33 @@ public class CityWeatherService implements ICityWeatherService {
     }
 
     private Mono<CityWeatherAdvice> getWeatherAdviceFromBackUp(String city) {
-        CityWeatherDetails cachedWeather = weatherBackUpData.get(city);
-        if (cachedWeather != null) {
-            return Mono.just(generateWeatherAdvice(cachedWeather));
+        CityWeatherDetails cityWeatherDetails = weatherBackUpData.get(city);
+        if (cityWeatherDetails != null) {
+            weatherBackUpData.put(city, removePastCityWeatherDetails(cityWeatherDetails));
+            fileManager.saveDataToFile(fileName, weatherBackUpData);
+            return Mono.just(generateWeatherAdvice(cityWeatherDetails));
         }
         logger.warn("No data available for {} in back up.", city);
         return Mono.empty();
+    }
+
+    private static CityWeatherDetails removePastCityWeatherDetails(CityWeatherDetails cachedWeather) {
+        // Get the current UTC time
+        LocalDateTime currentUtcTime = LocalDateTime.now(ZoneOffset.UTC);
+
+        // Define the formatter to parse the "dt_txt" field
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
+        // Filter the list to only include records where "dtTxt" is in the future
+        // Keep only future records
+        List<WeatherDetails> filteredList = cachedWeather.getList().stream()
+            .filter(weather -> {
+                LocalDateTime dt = LocalDateTime.parse(weather.getDtTxt(), formatter);
+                return dt.isAfter(currentUtcTime);  // Keep only future records
+            }).collect(Collectors.toList());
+        cachedWeather.setList(filteredList);
+        cachedWeather.setCnt(filteredList.size());
+        return cachedWeather;
     }
 }
 
