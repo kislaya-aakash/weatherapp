@@ -28,7 +28,7 @@ public class CityWeatherService implements ICityWeatherService {
 
     private final ExternalAPIManager apiManager;
     private final FileManager<CityWeatherDetails> fileManager;
-    private Map<String, CityWeatherDetails> weatherBackUpData;
+    private final Map<String, CityWeatherDetails> weatherBackUpData;
     private static final Logger logger = LoggerFactory.getLogger(CityWeatherService.class);
 
     @Value("${weather.api.key}")
@@ -46,16 +46,14 @@ public class CityWeatherService implements ICityWeatherService {
     @Value("${service.cacheFileName}")
     private String fileName;
 
-    public CityWeatherService(WebClient webClient, FileManager<CityWeatherDetails> fileManager, ExternalAPIManager apiManager) {
+    public CityWeatherService(FileManager<CityWeatherDetails> fileManager, ExternalAPIManager apiManager, Map<String, CityWeatherDetails> weatherBackUpData) {
         this.apiManager = apiManager;
         this.fileManager = fileManager;
-        this.weatherBackUpData = new LinkedHashMap<>();
+        this.weatherBackUpData = weatherBackUpData;
     }
 
     @Override
     public Mono<CityWeatherAdvice> getWeatherAdvice(String city) {
-        weatherBackUpData = fileManager.loadDataFromFile(fileName, new TypeReference<>() {});
-
         if (!isOnline) {
             logger.info("Service is in offline mode. Fetching data from back up.");
             return getWeatherAdviceFromBackUp(city)
@@ -224,5 +222,13 @@ public class CityWeatherService implements ICityWeatherService {
         cachedWeather.setCnt(filteredList.size());
         return cachedWeather;
     }
+
+//    private Mono<CityWeatherAdvice> getOfflineCityWeatherAdvice(String city) {
+//        return fileManager.loadDataFromFile(fileName, new TypeReference<>() {}).flatMap(weatherBackUpData ->{
+//            logger.info("Service is in offline mode. Fetching data from back up.");
+//            return getWeatherAdviceFromBackUp(city, weatherBackUpData)
+//                    .switchIfEmpty(Mono.just(new CityWeatherAdvice("No data available currently for ".concat(city), new LinkedHashMap<>(), 503)));
+//        });
+//    }
 }
 
