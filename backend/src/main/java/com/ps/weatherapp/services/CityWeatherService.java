@@ -1,6 +1,6 @@
 package com.ps.weatherapp.services;
 
-import com.fasterxml.jackson.core.type.TypeReference;
+import com.ps.weatherapp.configurations.AppConstants;
 import com.ps.weatherapp.interfaces.ICityWeatherService;
 import com.ps.weatherapp.models.*;
 import com.ps.weatherapp.utilities.ExternalAPIManager;
@@ -13,13 +13,13 @@ import org.slf4j.LoggerFactory;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.client.WebClient;
 
 import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -30,6 +30,7 @@ public class CityWeatherService implements ICityWeatherService {
     private final FileManager<CityWeatherDetails> fileManager;
     private final Map<String, CityWeatherDetails> weatherBackUpData;
     private static final Logger logger = LoggerFactory.getLogger(CityWeatherService.class);
+    private static final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     @Value("${weather.api.key}")
     private String apiKey;
@@ -46,6 +47,9 @@ public class CityWeatherService implements ICityWeatherService {
     @Value("${service.cacheFileName}")
     private String fileName;
 
+    @Value("${service.update.backup.duration.threshold}")
+    private int durationThreshold;
+
     public CityWeatherService(FileManager<CityWeatherDetails> fileManager, ExternalAPIManager apiManager, Map<String, CityWeatherDetails> weatherBackUpData) {
         this.apiManager = apiManager;
         this.fileManager = fileManager;
@@ -55,26 +59,26 @@ public class CityWeatherService implements ICityWeatherService {
     @Override
     public Mono<CityWeatherAdvice> getWeatherAdvice(String city) {
         if (!isOnline) {
-            logger.info("Service is in offline mode. Fetching data from back up.");
+            logger.info(AppConstants.SERVICE_OFFLINE);
             return getWeatherAdviceFromBackUp(city)
-                    .switchIfEmpty(Mono.just(new CityWeatherAdvice("No data available currently for ".concat(city), new LinkedHashMap<>(), 503)));
+                .switchIfEmpty(Mono.just(new CityWeatherAdvice(AppConstants.SERVICE_TEMPORARILY_UNAVAILABLE, new LinkedHashMap<>(), 503)));
         }
 
         return getCityWeatherDetails(city)
             .flatMap(cityWeatherDetails -> {
-                if ("200".equals(cityWeatherDetails.getCod())) {
+                if (cityWeatherDetails.getCod().equals("200")) {
                     return Mono.just(generateWeatherAdvice(cityWeatherDetails));
                 } else {
                     return getWeatherAdviceFromBackUp(city)
-                        .switchIfEmpty(Mono.just(new CityWeatherAdvice(cityWeatherDetails.getMessage(),
-                            new LinkedHashMap<>(),
-                            Integer.parseInt(cityWeatherDetails.getCod()))));
-                }
-            })
+                    .switchIfEmpty(Mono.just(new CityWeatherAdvice(cityWeatherDetails.getMessage(),
+                        new LinkedHashMap<>(),
+                        Integer.parseInt(cityWeatherDetails.getCod()))));
+                    }
+                })
             .onErrorResume(error -> {
                 logger.error(error.getMessage());
                 return getWeatherAdviceFromBackUp(city)
-                    .switchIfEmpty(Mono.just(new CityWeatherAdvice("Service temporarily unavailable.", new LinkedHashMap<>(), 503)));
+                    .switchIfEmpty(Mono.just(new CityWeatherAdvice(AppConstants.SERVICE_TEMPORARILY_UNAVAILABLE, new LinkedHashMap<>(), 503)));
             });
     }
 
@@ -82,28 +86,57 @@ public class CityWeatherService implements ICityWeatherService {
         Map<String, Object> queryParams = createQueryParams(city);
 
         return apiManager.fetchData(serviceType, queryParams, CityWeatherDetails.class)
-            .flatMap(cityWeatherDetails -> {
-                updateWeatherBackUpData(city, cityWeatherDetails);
-                return Mono.just(cityWeatherDetails);
-            })
+            .flatMap(cityWeatherDetails ->
+                Mono.just(cityWeatherDetails)
+                    .doOnNext((details) -> {
+                        logger.info(cityWeatherDetails.getMessage());
+                        LocalDateTime currentUTCDateTime = LocalDateTime.now(ZoneOffset.UTC);
+                        if(cityWeatherDetails.getCod().equals("200")) {
+                            if (weatherBackUpData.get(city) != null) {
+                                setLatestCityWeatherDetailsAndUpdateBackUp(city, cityWeatherDetails, currentUTCDateTime);
+                            }
+                            else
+                                updateCityWeatherBackUp(city, cityWeatherDetails, currentUTCDateTime);
+                        }
+                    }
+                )
+            )
             .onErrorResume(error -> {
-                logger.error("Error fetching weather data for {}: {}", city, error.getMessage());
-                return Mono.just(new CityWeatherDetails("Service temporarily unavailable.", Collections.emptyList(), "503"));
+                logger.error(AppConstants.ERROR_MESSAGE_CITY_WEATHER_GET, city, error.getMessage());
+                return Mono.just(new CityWeatherDetails(AppConstants.SERVICE_TEMPORARILY_UNAVAILABLE, Collections.emptyList(), "503"));
             });
     }
 
-    private void updateWeatherBackUpData(String city, CityWeatherDetails cityWeatherDetails) {
-        if ("200".equals(cityWeatherDetails.getCod())) {
-            weatherBackUpData.put(city, cityWeatherDetails);
-            fileManager.saveDataToFile(fileName, weatherBackUpData);
+    private void setLatestCityWeatherDetailsAndUpdateBackUp(String city, CityWeatherDetails cityWeatherDetails, LocalDateTime currentUTCDateTime) {
+        WeatherDetails currentWeatherDetail = cityWeatherDetails.getList().getFirst();
+        WeatherDetails existingWeatherDetails = weatherBackUpData.get(city).getList().getFirst();
+        LocalDateTime lastUpdatedDatetime = LocalDateTime.parse(existingWeatherDetails.getDtTxt(), formatter);
+
+        long minutesDifference = ChronoUnit.MINUTES.between(currentUTCDateTime, lastUpdatedDatetime);
+        boolean isWeatherSame = haveSameWeatherIds(currentWeatherDetail, existingWeatherDetails);
+
+        //Update back up only when weather changes or last updated duration crosses threshold
+        if (!isWeatherSame || Math.abs(minutesDifference) > durationThreshold) {
+            updateCityWeatherBackUp(city, cityWeatherDetails, currentUTCDateTime);
         }
+    }
+
+    private void updateCityWeatherBackUp(String city, CityWeatherDetails cityWeatherDetails, LocalDateTime currentUTCDateTime) {
+        cityWeatherDetails.setLastUpdated(currentUTCDateTime.format(formatter));
+        updateWeatherBackUpFile(city, cityWeatherDetails);
+    }
+
+    private void updateWeatherBackUpFile(String city, CityWeatherDetails cityWeatherDetails) {
+        weatherBackUpData.put(city, cityWeatherDetails);
+        fileManager.saveDataToFile(fileName, weatherBackUpData);
+        logger.info(AppConstants.CITY_WEATHER_BACKUP_DATA_FILE_UPDATED, city);
     }
 
     private Map<String, Object> createQueryParams(String city) {
         return Map.of(
-                "q", city,
-                "cnt", count,
-                "appid", apiKey
+                AppConstants.REQUEST_PARAM_QUERY, city,
+                AppConstants.REQUEST_PARAM_COUNT, count,
+                AppConstants.REQUEST_PARAM_APP_ID, apiKey
         );
     }
 
@@ -196,39 +229,50 @@ public class CityWeatherService implements ICityWeatherService {
     private Mono<CityWeatherAdvice> getWeatherAdviceFromBackUp(String city) {
         CityWeatherDetails cityWeatherDetails = weatherBackUpData.get(city);
         if (cityWeatherDetails != null) {
-            weatherBackUpData.put(city, removePastCityWeatherDetails(cityWeatherDetails));
-            fileManager.saveDataToFile(fileName, weatherBackUpData);
-            return Mono.just(generateWeatherAdvice(cityWeatherDetails));
+            //filter out stale data and keep present and future data
+            CityWeatherDetails weatherDetailsPostFilter = getFutureAndPresentWeatherDetails(cityWeatherDetails);
+            boolean isDataFiltered = weatherDetailsPostFilter.getCnt() != cityWeatherDetails.getCnt();
+            CityWeatherDetails finalCityWeatherDetails = isDataFiltered ? weatherDetailsPostFilter : cityWeatherDetails;
+            return Mono.just(generateWeatherAdvice(finalCityWeatherDetails))
+                .doOnNext(details -> {
+                    if (isDataFiltered) {
+                        updateWeatherBackUpFile(city, finalCityWeatherDetails);
+                    }
+                });
         }
-        logger.warn("No data available for {} in back up.", city);
+        logger.info(AppConstants.CITY_WEATHER_BACKUP_DATA_UNAVAILABLE, city);
         return Mono.empty();
     }
 
-    private static CityWeatherDetails removePastCityWeatherDetails(CityWeatherDetails cachedWeather) {
+    private static CityWeatherDetails getFutureAndPresentWeatherDetails(CityWeatherDetails cachedWeather) {
         // Get the current UTC time
         LocalDateTime currentUtcTime = LocalDateTime.now(ZoneOffset.UTC);
-
-        // Define the formatter to parse the "dt_txt" field
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
         // Filter the list to only include records where "dtTxt" is in the future
         // Keep only future records
         List<WeatherDetails> filteredList = cachedWeather.getList().stream()
             .filter(weather -> {
                 LocalDateTime dt = LocalDateTime.parse(weather.getDtTxt(), formatter);
-                return dt.isAfter(currentUtcTime);  // Keep only future records
+                return !dt.isBefore(currentUtcTime); // Keep records that are equal to or after the current time
             }).collect(Collectors.toList());
         cachedWeather.setList(filteredList);
         cachedWeather.setCnt(filteredList.size());
         return cachedWeather;
     }
 
-//    private Mono<CityWeatherAdvice> getOfflineCityWeatherAdvice(String city) {
-//        return fileManager.loadDataFromFile(fileName, new TypeReference<>() {}).flatMap(weatherBackUpData ->{
-//            logger.info("Service is in offline mode. Fetching data from back up.");
-//            return getWeatherAdviceFromBackUp(city, weatherBackUpData)
-//                    .switchIfEmpty(Mono.just(new CityWeatherAdvice("No data available currently for ".concat(city), new LinkedHashMap<>(), 503)));
-//        });
-//    }
+    private boolean haveSameWeatherIds(WeatherDetails details1, WeatherDetails details2) {
+        // Extract weather IDs from the first WeatherDetails object
+        Set<Integer> ids1 = details1.getWeather().stream()
+                .map(WeatherInfo::getId)
+                .collect(Collectors.toSet());
+
+        // Extract weather IDs from the second WeatherDetails object
+        Set<Integer> ids2 = details2.getWeather().stream()
+                .map(WeatherInfo::getId)
+                .collect(Collectors.toSet());
+
+        // Compare the sets
+        return ids1.equals(ids2);
+    }
 }
 

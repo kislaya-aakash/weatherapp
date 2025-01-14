@@ -8,6 +8,7 @@ public class CityWeatherDetails {
     private String message;
     private List<WeatherDetails> list;
     private City city;
+    private String lastUpdated;
 
     public String getCod() {
         return cod;
@@ -49,12 +50,21 @@ public class CityWeatherDetails {
         this.city = city;
     }
 
-    public CityWeatherDetails(String cod, int cnt, String message, List<WeatherDetails> list,City city) {
+    public String getLastUpdated() {
+        return lastUpdated;
+    }
+
+    public void setLastUpdated(String lastUpdated) {
+        this.lastUpdated = lastUpdated;
+    }
+
+    public CityWeatherDetails(String cod, int cnt, String message, List<WeatherDetails> list, City city, String lastUpdated) {
         this.cod = cod;
         this.cnt = cnt;
         this.message = message;
         this.list = list;
         this.city = city;
+        this.lastUpdated = lastUpdated;
     }
 
     public CityWeatherDetails() {
@@ -64,11 +74,5 @@ public class CityWeatherDetails {
         this.message = message;
         this.list = list;
         this.cod = cod;
-    }
-
-    public CityWeatherDetails(String message, List<WeatherDetails> list) {
-        this.message = message;
-        this.list = list;
-
     }
 }
