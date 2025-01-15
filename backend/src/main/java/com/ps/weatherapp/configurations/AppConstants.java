@@ -4,7 +4,7 @@ public class AppConstants {
 
     public static final String WEATHER_API_BASE_URL = "https://api.openweathermap.org/data/2.5";
 
-    public static final String SERVICE_TEMPORARILY_UNAVAILABLE = "Service temporarily unavailable3.";
+    public static final String SERVICE_TEMPORARILY_UNAVAILABLE = "Service temporarily unavailable.";
     public static final String SERVICE_OFFLINE = "Service running in offline mode.";
 
     public static final String REQUEST_PARAM_QUERY = "q";
