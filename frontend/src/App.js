@@ -22,14 +22,9 @@ function App() {
         {/* Search Bar */}
         <SearchBar setWeatherData={setWeatherData} />
 
-        {/* Display weather details or message */}
+        {/* Display WeatherTable only if weatherData is not null */}
         <div className="mt-5 text-center">
-          {weatherData ? (
-            // Pass weatherData to WeatherTable component for rendering
-            <WeatherTable weatherData={weatherData} />
-          ) : (
-            <p>Enter a city to get weather details.</p>
-          )}
+          {weatherData && <WeatherTable weatherData={weatherData} />}
         </div>
       </div>
 

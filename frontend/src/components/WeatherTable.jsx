@@ -1,6 +1,11 @@
 import React from "react";
 
 const WeatherTable = ({ weatherData }) => {
+  // Check if weatherData is a string
+  if (!weatherData.success) {
+    return <div style={styles.errorMessage}>{weatherData.message}</div>;
+  }
+
   return (
     <div style={styles.tableContainer}>
       <h2 style={styles.title}>Weather Forecast</h2>
@@ -41,6 +46,12 @@ const WeatherTable = ({ weatherData }) => {
 };
 
 const styles = {
+  errorMessage: {
+    color: "red",
+    textAlign: "center",
+    fontSize: "1.5em",
+    marginTop: "50px",
+  },
   tableContainer: {
     width: "80%",
     margin: "0 auto",

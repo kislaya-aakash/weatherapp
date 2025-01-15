@@ -18,17 +18,17 @@ const SearchBar = ({ setWeatherData }) => {
       try {
         const result = await fetchWeatherDetails(city);
         if (result.success) {
-          console.log(result);
           setWeatherData(result); // Update App.js state with the API response
           setError(""); // Clear any previous error
-        } else {
-          setWeatherData(null);
-          setError(result.message); // Set the error message
+        } else if (result.message && result.message.trim()) {
+          setWeatherData(result);
+          setError("");
         }
+        // else {
+        //   setWeatherData(null);
+        // }
       } catch (error) {
-        console.error("Failed to fetch weather details:", error);
         setWeatherData(null);
-        setError("An unexpected error occurred.");
       }
     } else {
       setError("City name cannot be empty."); // Handle empty input scenario

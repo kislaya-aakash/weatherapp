@@ -5,20 +5,18 @@ const fetchWeatherDetails = async (city) => {
       `http://localhost:8080/api/v1/weather/advice?city=${city}`
     );
     const result = await response.json();
-    console.log(response);
 
     if (response.status === 200) {
       return { success: true, data: result.data }; // Propagate the data field
     } else if (response.status === 404 || response.status === 503) {
-      return { success: false, message: result.message }; // Propagate the message field
+      return { success: false, data: null, message: result.message }; // Propagate the message field
     } else {
       throw new Error(`Unexpected status code: ${response.status}`);
     }
   } catch (error) {
-    console.error("Error fetching weather details:", error);
     return {
       success: false,
-      message: "An error occurred while fetching weather details.",
+      message: "Service temporarily unavailable.",
     };
   }
 };
