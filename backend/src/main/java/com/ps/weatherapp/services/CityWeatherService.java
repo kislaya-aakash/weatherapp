@@ -89,14 +89,13 @@ public class CityWeatherService implements ICityWeatherService {
             .flatMap(cityWeatherDetails ->
                 Mono.just(cityWeatherDetails)
                     .doOnNext((details) -> {
-                        logger.info(cityWeatherDetails.getMessage());
-                        LocalDateTime currentUTCDateTime = LocalDateTime.now(ZoneOffset.UTC);
                         if(cityWeatherDetails.getCod().equals("200")) {
                             if (weatherBackUpData.get(city) != null) {
-                                setLatestCityWeatherDetailsAndUpdateBackUp(city, cityWeatherDetails, currentUTCDateTime);
+                                setLatestCityWeatherDetailsAndUpdateBackUp(city, cityWeatherDetails);
                             }
-                            else
-                                updateCityWeatherBackUp(city, cityWeatherDetails, currentUTCDateTime);
+                            else {
+                                updateCityWeatherBackUp(city, cityWeatherDetails);
+                            }
                         }
                     }
                 )
@@ -107,22 +106,23 @@ public class CityWeatherService implements ICityWeatherService {
             });
     }
 
-    private void setLatestCityWeatherDetailsAndUpdateBackUp(String city, CityWeatherDetails cityWeatherDetails, LocalDateTime currentUTCDateTime) {
+    private void setLatestCityWeatherDetailsAndUpdateBackUp(String city, CityWeatherDetails cityWeatherDetails) {
         WeatherDetails currentWeatherDetail = cityWeatherDetails.getList().getFirst();
         WeatherDetails existingWeatherDetails = weatherBackUpData.get(city).getList().getFirst();
-        LocalDateTime lastUpdatedDatetime = LocalDateTime.parse(existingWeatherDetails.getDtTxt(), formatter);
 
-        long minutesDifference = ChronoUnit.MINUTES.between(currentUTCDateTime, lastUpdatedDatetime);
+        LocalDateTime lastUpdatedDatetime = LocalDateTime.parse(weatherBackUpData.get(city).getLastUpdated(), formatter);
+
+        long minutesDifference = ChronoUnit.MINUTES.between(LocalDateTime.now(ZoneOffset.UTC), lastUpdatedDatetime);
         boolean isWeatherSame = haveSameWeatherIds(currentWeatherDetail, existingWeatherDetails);
 
         //Update back up only when weather changes or last updated duration crosses threshold
         if (!isWeatherSame || Math.abs(minutesDifference) > durationThreshold) {
-            updateCityWeatherBackUp(city, cityWeatherDetails, currentUTCDateTime);
+            updateCityWeatherBackUp(city, cityWeatherDetails);
         }
     }
 
-    private void updateCityWeatherBackUp(String city, CityWeatherDetails cityWeatherDetails, LocalDateTime currentUTCDateTime) {
-        cityWeatherDetails.setLastUpdated(currentUTCDateTime.format(formatter));
+    private void updateCityWeatherBackUp(String city, CityWeatherDetails cityWeatherDetails) {
+        cityWeatherDetails.setLastUpdated(LocalDateTime.now(ZoneOffset.UTC).format(formatter));
         updateWeatherBackUpFile(city, cityWeatherDetails);
     }
 
@@ -230,7 +230,7 @@ public class CityWeatherService implements ICityWeatherService {
         CityWeatherDetails cityWeatherDetails = weatherBackUpData.get(city);
         if (cityWeatherDetails != null) {
             //filter out stale data and keep present and future data
-            CityWeatherDetails weatherDetailsPostFilter = getFutureAndPresentWeatherDetails(cityWeatherDetails);
+            CityWeatherDetails weatherDetailsPostFilter = getFutureAndPresentWeatherDetails(city, cityWeatherDetails);
             boolean isDataFiltered = weatherDetailsPostFilter.getCnt() != cityWeatherDetails.getCnt();
             CityWeatherDetails finalCityWeatherDetails = isDataFiltered ? weatherDetailsPostFilter : cityWeatherDetails;
             return Mono.just(generateWeatherAdvice(finalCityWeatherDetails))
@@ -244,7 +244,7 @@ public class CityWeatherService implements ICityWeatherService {
         return Mono.empty();
     }
 
-    private static CityWeatherDetails getFutureAndPresentWeatherDetails(CityWeatherDetails cachedWeather) {
+    private CityWeatherDetails getFutureAndPresentWeatherDetails(String city, CityWeatherDetails cachedWeather) {
         // Get the current UTC time
         LocalDateTime currentUtcTime = LocalDateTime.now(ZoneOffset.UTC);
 
@@ -257,6 +257,7 @@ public class CityWeatherService implements ICityWeatherService {
             }).collect(Collectors.toList());
         cachedWeather.setList(filteredList);
         cachedWeather.setCnt(filteredList.size());
+        updateWeatherBackUpFile(city, cachedWeather);
         return cachedWeather;
     }
 

@@ -37,14 +37,14 @@ paths:
                             - status: Clouds
                               description: broken clouds
                           advice: Cloudy skies. Keep an umbrella handy just in case!
-                          time: 21:00:00
+                          time: "21:00:00"
                       "2025-01-12":
                         - temperature: 0
                           weather:
                             - status: Clouds
                               description: broken clouds
                           advice: Cloudy skies. Keep an umbrella handy just in case!
-                          time: 00:00:00
+                          time: "00:00:00"
         '404':
           description: City not found
           content:
@@ -116,7 +116,7 @@ components:
                 time:
                   type: string
                   description: Time of the weather report (in 24-hour format)
-                  example: 21:00:00
+                  example: "21:00:00"
     ErrorResponse:
       type: object
       properties:

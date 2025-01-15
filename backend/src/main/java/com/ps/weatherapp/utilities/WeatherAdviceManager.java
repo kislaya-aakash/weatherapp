@@ -11,9 +11,9 @@ public class WeatherAdviceManager {
 
     static {
         // Initialize the map with weather condition and advice
-        weatherAdviceMap.put("rain", "It's raining. Carry an umbrella and wear waterproof shoes! ");
-        weatherAdviceMap.put("drizzle", "Light drizzle outside. A light raincoat should suffice. ");
-        weatherAdviceMap.put("snow", "Snow is falling! Stay warm and wear sturdy boots. ");
+        weatherAdviceMap.put("rain", "Carry an umbrella and wear waterproof shoes! ");
+        weatherAdviceMap.put("drizzle", "Light drizzle. A light raincoat should suffice. ");
+        weatherAdviceMap.put("snow", "Snow incoming! Stay warm and wear sturdy boots. ");
         weatherAdviceMap.put("mist", "Misty conditions outside. Use caution while driving and keep your lights on. ");
         weatherAdviceMap.put("smoke", "Smoke in the air. Minimize outdoor activity and wear a mask if necessary. ");
         weatherAdviceMap.put("haze", "Hazy weather. Visibility might be reduced; be cautious while driving. ");

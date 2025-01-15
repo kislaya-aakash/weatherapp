@@ -5,16 +5,14 @@ import com.ps.weatherapp.models.*;
 import com.ps.weatherapp.services.CityWeatherService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
 import java.util.LinkedHashMap;
 
 @RestController
 @RequestMapping("/api/v1/weather")
+@CrossOrigin(origins = "http://localhost:3000")
 public class WeatherController {
 
     private final CityWeatherService weatherService;
@@ -40,10 +38,10 @@ public class WeatherController {
             })
             .onErrorResume(error -> {
                 // Handle unexpected errors (e.g., network issues)
-                CityWeatherAdvice cityWeatherDetails = new CityWeatherAdvice(
+                CityWeatherAdvice errorResponse = new CityWeatherAdvice(
                         AppConstants.SERVICE_TEMPORARILY_UNAVAILABLE, new LinkedHashMap<>(), 503);
                 return Mono.just(ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                        .body(cityWeatherDetails)); // 503 Service Unavailable
+                        .body(errorResponse)); // 503 Service Unavailable
             });
     }
 }
