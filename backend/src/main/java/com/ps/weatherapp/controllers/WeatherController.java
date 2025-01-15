@@ -1,5 +1,6 @@
 package com.ps.weatherapp.controllers;
 
+import com.ps.weatherapp.configurations.AppConstants;
 import com.ps.weatherapp.models.*;
 import com.ps.weatherapp.services.CityWeatherService;
 import org.springframework.http.HttpStatus;
@@ -39,10 +40,10 @@ public class WeatherController {
             })
             .onErrorResume(error -> {
                 // Handle unexpected errors (e.g., network issues)
-                CityWeatherAdvice fallbackPrediction = new CityWeatherAdvice(
-                        "Service temporarily unavailable.", new LinkedHashMap<>(), 503);
+                CityWeatherAdvice cityWeatherDetails = new CityWeatherAdvice(
+                        AppConstants.SERVICE_TEMPORARILY_UNAVAILABLE, new LinkedHashMap<>(), 503);
                 return Mono.just(ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                        .body(fallbackPrediction)); // 503 Service Unavailable
+                        .body(cityWeatherDetails)); // 503 Service Unavailable
             });
     }
 }
